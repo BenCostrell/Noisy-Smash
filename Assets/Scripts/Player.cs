@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Player : MonoBehaviour {
 
@@ -8,6 +9,8 @@ public class Player : MonoBehaviour {
     public int playerNum;
     private Rigidbody2D rb;
     private GameObject punchPivot;
+    private SpriteRenderer sr;
+    private Collider2D col;
 
     public float baseAccel;
     private float accel;
@@ -22,10 +25,17 @@ public class Player : MonoBehaviour {
 
     public float punchCastDuration;
     public float punchActiveTime;
+    public int punchBaseDamage;
+    private int punchDamage;
     public float baseKnockback;
     [HideInInspector]
     public float knockback;
     public float stunFactor;
+    public float dmgKnockbackRatio;
+
+    public float deathHeight;
+
+    public LayerMask groundLayer;
 
     public float noiseFactor;
     public float noiseSpeed;
@@ -36,6 +46,7 @@ public class Player : MonoBehaviour {
     private bool actionable;
     private float powerLevel;
     private float randomSeed;
+    private int damage;
 
     [HideInInspector]
     public TaskManager taskManager;
@@ -44,6 +55,8 @@ public class Player : MonoBehaviour {
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        sr = GetComponent<SpriteRenderer>();
+        col = GetComponent<Collider2D>();
         punchPivot = transform.GetChild(0).gameObject;
         baseScale = transform.localScale;
         DeactivatePunch();
@@ -59,8 +72,10 @@ public class Player : MonoBehaviour {
     // Update is called once per frame
     void Update()
     {
+        CheckIfDead();
         taskManager.Update();
         UpdatePower();
+        CheckIfGrounded();
         if (actionable)
         {
             Move();
@@ -89,6 +104,7 @@ public class Player : MonoBehaviour {
         accel = (1 - (noiseFactor * powerLevel)) * baseAccel;
         maxSpeed = (1 - (noiseFactor * powerLevel)) * baseMaxSpeed;
         jumpVelocity = (1 - (noiseFactor * powerLevel)) * baseJumpVelocity;
+        punchDamage = Mathf.CeilToInt((1 + (noiseFactor * powerLevel)) * punchBaseDamage);
 
     }
 
@@ -128,23 +144,18 @@ public class Player : MonoBehaviour {
         taskManager.AddTask(new PunchTask(this, punchCastDuration, punchActiveTime));
     }
 
-    void OnCollisionEnter2D(Collision2D collision)
+    void CheckIfGrounded()
     {
-        GameObject obj = collision.gameObject;
-        if (obj.tag == "Ground"){
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, col.bounds.extents.y, groundLayer);
+        if (hit){
             grounded = true;
             doubleJumps = 1;
             if (!actionable)
             {
-                Bounce(collision.contacts[0].normal);
+                Bounce(hit.normal);
             }
         }
-    }
-
-    void OnCollisionExit2D(Collision2D collision)
-    {
-        GameObject obj = collision.gameObject;
-        if (obj.tag == "Ground")
+        else
         {
             grounded = false;
         }
@@ -189,20 +200,37 @@ public class Player : MonoBehaviour {
 
     public void GetHit(Player enemy, float rot)
     {
-        rb.velocity = enemy.knockback * new Vector3(Mathf.Cos(rot), Mathf.Sin(rot), 0);
-        Debug.Log(stunFactor * enemy.knockback);
+        damage += enemy.punchDamage;
+        UpdateDamageUI();
+        float kb = enemy.knockback * (1 + (damage * dmgKnockbackRatio));
+        rb.velocity = kb * new Vector3(Mathf.Cos(rot), Mathf.Sin(rot), 0);
         DeactivatePunch();
         taskManager.Clear();
-        taskManager.AddTask(new StunTask(this, stunFactor * enemy.knockback));
-        if (grounded)
-        {
-            rb.velocity = new Vector2(rb.velocity.x, -rb.velocity.y);
-        }
+        taskManager.AddTask(new StunTask(this, stunFactor * kb));
+        CheckIfGrounded();
     }
 
     void Bounce(Vector2 normal)
     {
-        rb.velocity = Vector2.Reflect(rb.velocity, normal);
+        if (rb.velocity.y < 0)
+        {
+            rb.velocity = Vector2.Reflect(rb.velocity, normal);
+        }
+    }
+
+    void UpdateDamageUI()
+    {
+        Services.GameManager.playerDamageUI[playerNum - 1].GetComponent<Text>().text = damage + "%";
+    }
+
+    void CheckIfDead()
+    {
+        if (transform.position.y < deathHeight) Die();
+    }
+
+    void Die()
+    {
+        Services.GameManager.GameOver(this);
     }
 }
 

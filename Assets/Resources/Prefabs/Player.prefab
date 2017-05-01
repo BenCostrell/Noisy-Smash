@@ -168,10 +168,16 @@ MonoBehaviour:
   aerialDriftFactor: 0.5
   baseJumpVelocity: 100
   punchCastDuration: 0.4
-  punchActiveTime: 0.1
-  baseKnockback: 100
+  punchActiveTime: 0.2
+  punchBaseDamage: 5
+  baseKnockback: 75
   knockback: 100
   stunFactor: 0.003
+  dmgKnockbackRatio: 0.02
+  deathHeight: -35
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 256
   noiseFactor: 0.6
   noiseSpeed: 0.25
 --- !u!212 &212111008115923682

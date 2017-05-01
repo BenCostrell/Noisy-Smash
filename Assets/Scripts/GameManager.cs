@@ -2,12 +2,17 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour {
 
     public Player[] players;
     public Vector3[] playerSpawns;
     public Color[] playerColors;
+    public GameObject[] playerDamageUI;
+    public GameObject gameWinText;
+    [HideInInspector]
+    public bool fightActive;
 
 	void Awake()
     {
@@ -17,6 +22,9 @@ public class GameManager : MonoBehaviour {
     // Use this for initialization
 	void Start () {
         InitializePlayers();
+        fightActive = true;
+        gameWinText.SetActive(false);
+        Time.timeScale = 1;
 	}
 	
 	// Update is called once per frame
@@ -56,5 +64,24 @@ public class GameManager : MonoBehaviour {
     void Reset()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void GameOver(Player losingPlayer)
+    {
+        Time.timeScale = 0;
+        string winText;
+        if (losingPlayer.playerNum == 1)
+        {
+            winText = "GREEN WINS";
+        }
+        else
+        {
+            winText = "BLUE WINS";
+        }
+
+        Text textComponent = gameWinText.GetComponent<Text>();
+        textComponent.text = winText;
+        textComponent.color = playerColors[2 - losingPlayer.playerNum];
+        gameWinText.SetActive(true);
     }
 }
